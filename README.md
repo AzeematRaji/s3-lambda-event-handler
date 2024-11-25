@@ -69,21 +69,21 @@ cd terraform
 `terraform init` _initializes the repository, adding all the dependencies required._
 
 `terraform plan` _plan the changes to be added or removed, essentially a preview of what `terraform apply` will do, allowing you to review and confirm_ 
-![](.images/lambda-function1.png)
+![](./images/lambda-function1.png)
 
 `terraform apply --auto-approve` _apply without prompt_
 
 - Confirm the code is running perfectly 
 
 _aws console - confirm the creation of bucket and lambda function_
-![](.images/lambda-function3.png)
-![](.images/lambda-function4.png)
+![](./images/lambda-function3.png)
+![](./images/lambda-function4.png)
 
 _upload files to the test-stage/_
-![](.images/lambda-function5.png)
+![](./images/lambda-function5.png)
 
 _confirm it in the prod-stage/_
-![](.images/lambda-function6.png)
+![](./images/lambda-function6.png)
 
 **Conclusion**
 
