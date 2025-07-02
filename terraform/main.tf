@@ -16,31 +16,45 @@ resource "aws_iam_role" "lambda_exec_role" {
   })
 }
 
-resource "aws_iam_policy_attachment" "lambda_s3_access" {
-  name       = "attach-lambda-s3-access"
-  roles      = [aws_iam_role.lambda_exec_role.name]
+resource "aws_iam_role_policy_attachment" "lambda_s3_access" {
+  role       = aws_iam_role.lambda_exec_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 }
 
-resource "aws_iam_policy_attachment" "lambda_logs_access" {
-  name       = "attach-lambda-logs-access"
-  roles      = [aws_iam_role.lambda_exec_role.name]
+resource "aws_iam_role_policy_attachment" "lambda_logs_access" {
+  role       = aws_iam_role.lambda_exec_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-data "archive_file" "lambda_zip" {
-  type        = "zip"
-  source_dir  = "${path.module}/../lambda"
-  output_path = "${path.module}/lambda.zip"
-}
+
+# data "archive_file" "lambda_zip" {
+#  type        = "zip"
+#  source_dir  = "${path.module}/../lambda"
+#  output_path = "${path.module}/lambda.zip"
+#}
+
+#resource "aws_lambda_function" "image_resizer" {
+#  filename         = data.archive_file.lambda_zip.output_path
+#  function_name    = "api-image-resizer"
+#  role             = aws_iam_role.lambda_exec_role.arn
+#  handler          = "lambda_function.lambda_handler"
+#  runtime          = "python3.9"
+#  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
+
+#  environment {
+#    variables = {
+#      BUCKET = var.bucket_name
+#    }
+#  }
+#}
 
 resource "aws_lambda_function" "image_resizer" {
-  filename         = data.archive_file.lambda_zip.output_path
+  filename         = "${path.module}/lambda.zip"
   function_name    = "api-image-resizer"
   role             = aws_iam_role.lambda_exec_role.arn
   handler          = "lambda_function.lambda_handler"
   runtime          = "python3.9"
-  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
+  source_code_hash = filebase64sha256("${path.module}/lambda.zip")
 
   environment {
     variables = {
@@ -48,6 +62,7 @@ resource "aws_lambda_function" "image_resizer" {
     }
   }
 }
+
 
 resource "aws_apigatewayv2_api" "http_api" {
   name          = "image-api"
