@@ -1,8 +1,45 @@
-# Creating S3 bucket and a Lambda function as event handler using Terraform #
+# Serverless App using with Terraform, Lambda & S3 and api gateway
 
 **Project Overview**
 
-This project demonstrates how to use Terraform to provision an S3 bucket and a Lambda function. The setup includes creating folders in the S3 bucket, and configuring a Python-based Lambda function to trigger when an object is uploaded to a specific folder, automatically moving it to a designated target folder.
+This project creates a simple serverless API on AWS using Terraform. The API accepts an image upload, resizes it using Python (Pillow), and stores it in an S3 bucket.
+
+## Stack
+
+- **AWS Lambda** – Executes the image resizing logic
+- **API Gateway (HTTP API)** – Receives image POST requests
+- **S3** – Stores resized images
+- **Terraform** – Manages the infrastructure as code
+- **Python (Pillow)** – Handles image resizing inside Lambda
+
+## Project Structure
+├── lambda/
+│ ├── lambda_function.py
+│ └── Pillow package
+├── terraform/
+│ ├── main.tf
+│ ├── outputs.tf
+│ ├── providers.tf
+│ ├── variables.tf
+│ ├── terraform.tfvars # Ignored in git
+│ └── .gitignore
+
+
+## ⚙️ How It Works
+
+1. User sends a base64 image in a POST request to `/upload` via API Gateway.
+2. API Gateway triggers a Lambda function.
+3. Lambda:
+   - Resizes the image to 300x300 using Pillow
+   - Stores it in `resized/` folder of the S3 bucket
+4. Lambda returns a JSON with the image path.
+
+## 🔧 Setup
+
+### 1. Configure AWS Credentials
+Make sure you have AWS CLI configured:
+```bash
+aws configure
 
 **Terraform:**
 
@@ -88,6 +125,14 @@ _confirm it in the prod-stage/_
 **Conclusion**
 
 This project demonstrates how to efficiently integrate AWS S3 and Lambda using Terraform to automate object management workflows. By creating a serverless solution, files uploaded to a specific folder are seamlessly processed and moved to a designated location, reducing manual intervention and improving operational efficiency. This project showcases the power of Infrastructure as Code (IaC) in automating cloud resource provisioning and management.
+
+
+
+
+
+
+
+
 
 
 
