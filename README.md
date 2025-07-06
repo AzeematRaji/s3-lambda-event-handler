@@ -1,8 +1,6 @@
-# Serverless App using with Terraform, Lambda & S3 and api gateway
+# Serverless App with Terraform, AWS Lambda, API Gateway & S3
 
-**Project Overview**
-
-This project creates a simple serverless API on AWS using Terraform. The API accepts an image upload, resizes it using Python (Pillow), and stores it in an S3 bucket.
+This project demonstrates how to build and deploy a serverless application on AWS using **Terraform** for infrastructure provisioning. It leverages **AWS Lambda** for compute, **API Gateway** for exposing endpoints, and **S3** for storage.
 
 ## Stack
 
@@ -13,6 +11,8 @@ This project creates a simple serverless API on AWS using Terraform. The API acc
 - **Python (Pillow)** – Handles image resizing inside Lambda
 
 ## Project Structure
+
+```
 ├── lambda/
 │ ├── lambda_function.py
 │ └── Pillow package
@@ -23,9 +23,10 @@ This project creates a simple serverless API on AWS using Terraform. The API acc
 │ ├── variables.tf
 │ ├── terraform.tfvars # Ignored in git
 │ └── .gitignore
+└── README.md
+```
 
-
-## ⚙️ How It Works
+## How It Works
 
 1. User sends a base64 image in a POST request to `/upload` via API Gateway.
 2. API Gateway triggers a Lambda function.
@@ -34,110 +35,99 @@ This project creates a simple serverless API on AWS using Terraform. The API acc
    - Stores it in `resized/` folder of the S3 bucket
 4. Lambda returns a JSON with the image path.
 
-## 🔧 Setup
+## Prerequisites
+- Python 3.x
+- Terraform
+- An AWS account
+- Optional: EC2 instance with IAM role
+  
+## Setup
 
-### 1. Configure AWS Credentials
-Make sure you have AWS CLI configured:
+### 1. Secure AWS Credentials
+
+As a best practice, I used a **remote EC2 VM** with an **attached instance role**, instead of exporting AWS credentials manually. The instance role had just the required permissions:
+
+- `AmazonS3FullAccess`
+- `AWSLambda_FullAccess`
+- `AmazonAPIGatewayAdministrator`
+- `IAMFullAccess`
+
+This eliminates the need to store AWS credentials in the environment.
+
+### 2. Prepare the Project
+
 ```bash
-aws configure
+mkdir lambda terraform
+touch lambda/lambda_function.py terraform/main.tf terraform/outputs.tf terraform/variables.tf terraform/providers.tf terraform/terraform.tfvars
+```
+### 3. Install Pillow and Package the Lambda
+Navigate to the lambda/ folder and install the Pillow package:
 
-**Terraform:**
+`pip install pillow -t .`
 
-Terraform is an open-source Infrastructure as Code (IaC) tool used to automate and manage cloud infrastructure. It allows you to define infrastructure resources (like servers, databases, and networks) in declarative configuration files and then provision them consistently across different environments.
+Then zip everything (recursively) and move it to the terraform/ folder:
 
-**Prerequisites**
-- AWS account
-- IAM user with administrator or neccessary role enabled
-- Terraform [Install terraform](https://developer.hashicorp.com/terraform/install)
-- AWSCLI [Install awscli](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+`zip -r ../terraform/lambda.zip .`
 
-**Stey by step guide**
-
-- Configure your AWS credentials so that the AWS CLI can authenticate and interact with your AWS account
+⚠️ Note for Ubuntu Users:
+Since AWS Lambda runs on Amazon Linux, it’s better to package dependencies inside an Amazon Linux container to avoid runtime issues.
+For example:
 
 ```
-aws configure
+docker run -v "$PWD":/var/task lambci/lambda:build-python3.8 pip install pillow -t .
+zip -r ../terraform/lambda.zip .
 ```
-
-- Create a parent directory
-
-```
-mkdir s3-lambda-event-handler
-cd s3-lambda-event-handler
-```
-
-- create your code file 
+### 4. Deploy with Terraform
+Navigate to the terraform/ directory and initialize Terraform:
 
 ```
-touch lambda-function.py
-```
- defines the function logic. The function is triggered by the Lambda service when an object is uploaded to the test-stage/ folder in the S3 bucket, which essentially moves object to the prod-stage/ and deletes it from test-stage/ aferwards. 
-
-- create .gitignore file, to prevent making some sensitive files public like .tfvars file
-
-- Create a terraform directory for your configurations
-
-```
-mkdir terraform
-cd terraform
+terraform init
+terraform plan
+terraform apply --auto-approve
 ```
 
-- Create configuration files 
+After a few minutes, your Lambda function, API Gateway, and S3 bucket should be ready.
 
-`providers.tf` _contains all the providers needed for this project_
+### 5. Test with curl
+Download an image, encode it to base64, and send a request:
 
-`variables.tf` _defines input variables_
+```
+curl -o cat.jpg https://images.unsplash.com/photo-1592194996308-7b43878e84a6?w=600
+base64 cat.jpg > encoded.txt
+export BASE64_IMAGE=$(cat encoded.txt | tr -d '\n')
 
-`main.tf` _contains;_ 
-- _module s3 bucket: creates a s3 bucket, modules makes simpler and more concise code._
+curl -X POST https://<your-api-url>/upload \
+  -H "Content-Type: application/json" \
+  -d "{\"image\": \"${BASE64_IMAGE}\"}"
+```
+### 6. Check S3 for Uploaded Image
+Go to your S3 console, the resized image should be inside the resized/ folder.
 
-- _resources aws_s3_object: folders cannot be directly created as resources in an S3 bucket. However, this can be achieved by defining an object with a key that ends with a /, which mimics the behavior of a folder._
+To make the image publicly viewable in a browser:
 
-- _module lambda: creates a lambda function and serves as entry point for the lamda-function.py,  a policy that grnats access to the s3 bucket is added._
+- Disable “Block all public access” for the bucket.
 
-- _resources aws_s3_bucket_notification, aws_lambda_permission: this allows s3 bucket to notify lambda of the event change and grants permission to trigger the fucntion_
+- Add a bucket policy like this before uploading any files:
 
-`outputs.tf` _define output values that are displayed after the deployment completes_
-
-`terraform.tfvars` _file is used to assign values to the input variables defined in `variables.tf`. It often contains sensitive information, such as AWS credentials or configuration settings. To protect this data, it is recommended to include the file in .gitignore to prevent accidental exposure in public repositories._
-
-- Run the terraform command
-
-`terraform init` _initializes the repository, adding all the dependencies required._
-
-`terraform plan` _plan the changes to be added or removed, essentially a preview of what `terraform apply` will do, allowing you to review and confirm_ 
-![](./images/lambda-function1.png)
-
-`terraform apply --auto-approve` _apply without prompt_
-
-- Confirm the code is running perfectly 
-
-_aws console - confirm the creation of bucket and lambda function_
-![](./images/lambda-function3.png)
-![](./images/lambda-function4.png)
-
-_upload files to the test-stage/_
-![](./images/lambda-function5.png)
-
-_confirm it in the prod-stage/_
-![](./images/lambda-function6.png)
-
-**Conclusion**
-
-This project demonstrates how to efficiently integrate AWS S3 and Lambda using Terraform to automate object management workflows. By creating a serverless solution, files uploaded to a specific folder are seamlessly processed and moved to a designated location, reducing manual intervention and improving operational efficiency. This project showcases the power of Infrastructure as Code (IaC) in automating cloud resource provisioning and management.
+```
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowPublicRead",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::<your-bucket-name>/*"
+    }
+  ]
+}
+```
+Note: If the bucket policy is added after the file upload, the object may still be private.
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+## Improvements
+1. Add a frontend interface to let users upload and view resized images
+2. Improve error handling and response messages
+3. Generate pre-signed URLs for secure image access
+4. Add GitHub Actions to automate deployment via CI/C
